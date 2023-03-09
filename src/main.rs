@@ -1,3 +1,4 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
@@ -149,7 +150,7 @@ fn callback(event: Event, state: &mut Arc<Mutex<State>>) {
             let mut state = state.lock().unwrap();
 
             if let EventType::KeyRelease(key) = event.event_type {
-                if key == Key::Escape {
+                if key == Key::End {
                     state.shutdown = true;
                     return;
                 }
