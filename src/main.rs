@@ -55,7 +55,7 @@ impl eframe::App for Window {
             }
         }
 
-        if state_guard.shutdown {
+        if state_guard.shutdown || ctx.input(|i| i.keys_down.get(&egui::Key::End).is_some()) {
             frame.close();
             std::process::exit(0);
         }
