@@ -11,7 +11,7 @@ Once started, it will display an APM counter that resets every minute and displa
 
 It only counts on a key/button release. Scroll wheel and mouse movement aren't used in the script.
 
-For now, to shutdown the application, just press **Escape**.
+For now, to shutdown the application, just press the **End** key.
 
 ## crates.io dependencies
 
