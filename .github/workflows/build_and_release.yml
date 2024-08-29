@@ -12,20 +12,16 @@ jobs:
       matrix:
         platform:
           - target: x86_64-unknown-linux-gnu
-            bin: pre-commit
-            bin_name: pre-commit_upordawn
+            bin: apm_display
             os: ubuntu-latest
           - target: x86_64-apple-darwin
-            bin: pre-commit
-            bin_name: pre-commit_upordawn
+            bin: apm_display
             os: macOS-latest
           - target: x86_64-pc-windows-gnu
-            bin: pre-commit.exe
-            bin_name: pre-commit_upordawn.exe
+            bin: apm_display.exe
             os: windows-latest
           - target: i686-pc-windows-msvc
-            bin: pre-commit.exe
-            bin_name: pre-commit_upordawn.exe
+            bin: apm_display.exe
             os: windows-latest
 
     steps:
@@ -46,7 +42,7 @@ jobs:
       - name: Create target dir & Move binary
         run: |
           mkdir -p release_assets/${{ matrix.platform.os }}
-          mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin_name }} release_assets/${{ matrix.platform.os }}/${{ matrix.platform.bin }}
+          mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} release_assets/${{ matrix.platform.os }}/${{ matrix.platform.bin }}
 
       - name: Release
         uses: softprops/action-gh-release@v1
