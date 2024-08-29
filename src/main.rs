@@ -7,10 +7,9 @@ use eframe::egui::{self, RichText};
 use eframe::epaint::{Color32, Pos2, Vec2};
 use eframe::NativeOptions;
 use rdev::{listen, Event, EventType, Key};
-use tokio::spawn;
 
 const DEFAULT_SCREEN_WIDTH: f32 = 1920.;
-const WINDOW_SIZE: Vec2 = Vec2 { x: 200., y: 50. };
+const WINDOW_SIZE: Vec2 = Vec2 { x: 100., y: 40. };
 const WINDOW_POS: Pos2 = Pos2 {
     x: DEFAULT_SCREEN_WIDTH - WINDOW_SIZE.x,
     y: 0.,
@@ -19,10 +18,14 @@ const WINDOW_POS: Pos2 = Pos2 {
 #[derive(Debug, Default)]
 struct State {
     shutdown: bool,
-    actions: u64,
-    // 100ms elapsed
+    actions_count: u64,
+    // every 100ms elapsed
     elapsed: u64,
     apm: u64,
+    // every 1h elapsed
+    average_elapsed: u64,
+    average_apm: u64,
+    average_actions_count: u64,
     checked_screen_size: bool,
 }
 
@@ -42,7 +45,6 @@ impl eframe::App for Window {
         let mut state_guard = _state.lock().unwrap();
         let monitor_size = frame.info().window_info.monitor_size;
 
-        // These IF statements are ugly but needed to satisfy Clippy.
         if !state_guard.checked_screen_size {
             if let Some(size) = monitor_size {
                 if size.x != DEFAULT_SCREEN_WIDTH {
@@ -69,12 +71,19 @@ impl eframe::App for Window {
             .stroke(stroke);
         egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
             ui.centered_and_justified(|ui| {
-                ui.label(
-                    RichText::new(format!("{} APM", state_guard.apm))
-                        .color(Color32::GREEN)
-                        .size(25.)
-                        .strong(),
-                );
+                ui.vertical_centered_justified(|ui| {
+                    ui.label(
+                        RichText::new(format!("{} APM", state_guard.apm))
+                            .color(Color32::GREEN)
+                            .size(20.)
+                            .strong(),
+                    );
+                    ui.label(
+                        RichText::new(format!("{} avg", state_guard.average_apm))
+                            .color(Color32::GREEN)
+                            .size(10.),
+                    );
+                });
             });
         });
 
@@ -89,14 +98,14 @@ async fn main() {
     let state = Arc::new(Mutex::new(State::default()));
 
     let mut _state = Arc::clone(&state);
-    spawn(async move {
+    tokio::spawn(async move {
         if let Err(error) = listen(move |e| callback(e, &mut _state)) {
             eprintln!("Error: {:?}", error);
         }
     });
 
     let _state = Arc::clone(&state);
-    spawn(async move {
+    tokio::spawn(async move {
         loop {
             let mut state_guard = _state.lock().unwrap();
 
@@ -105,12 +114,27 @@ async fn main() {
             }
 
             if state_guard.elapsed == 600 {
-                state_guard.apm = state_guard.actions;
-                state_guard.actions = 0;
+                state_guard.apm = state_guard.actions_count;
+                state_guard.actions_count = 0;
                 state_guard.elapsed = 0;
             } else {
                 state_guard.elapsed += 1;
-                state_guard.apm = state_guard.actions * (600 / state_guard.elapsed);
+                let time = state_guard.elapsed as f64 / 10.0;
+                state_guard.apm = (state_guard.actions_count as f64 / time * 60.0) as _;
+            }
+
+            if state_guard.average_elapsed == 600 * 60 * 60 {
+                state_guard.average_apm = state_guard.apm;
+                state_guard.average_actions_count = 0;
+                state_guard.average_elapsed = 0;
+            } else {
+                state_guard.average_elapsed += 1;
+                let time = state_guard.average_elapsed as f64 / 600.;
+                state_guard.average_apm = if time > 0. {
+                    (state_guard.average_actions_count as f64 / time) as _
+                } else {
+                    0
+                };
             }
 
             drop(state_guard);
@@ -156,7 +180,8 @@ fn callback(event: Event, state: &mut Arc<Mutex<State>>) {
                 }
             }
 
-            state.actions += 1;
+            state.actions_count += 1;
+            state.average_actions_count += 1;
         }
         _ => (),
     }
